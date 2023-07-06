@@ -6,11 +6,6 @@ main {
   gap: 5px;
 }
 
-#timer {
-  font-size: large;
-  font-weight: bold;
-}
-
 .board-row {
   display: flex;
   justify-content: center;
@@ -21,7 +16,7 @@ main {
 .board-column {
   width: 60px;
   height: 60px;
-  border: 3px solid #d3d6da;
+  border: 2px solid #3a3a3c;
   display: flex;
   justify-content: center;
   align-items: center;

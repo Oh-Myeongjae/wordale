@@ -1,95 +1,101 @@
-const 정답 = "APPLE";
+const timerDiv = document.getElementById("timer");
 
 let attempts = 0;
 let index = 0;
+let isExistLastWord = false;
+
 let timer;
+let 시작_시각;
 
-function appStart() {
-  const displayGameover = () => {
-    const div = document.createElement("div");
-    div.innerText = "게임이 종료됐습니다.";
-    div.style =
-      "display:flex; justify-content:center; align-items:center; position:absolute; top:40vh; left:38%; background-color:white; width:200px; height:100px;";
-    document.body.appendChild(div);
-  };
-
-  const gameover = () => {
-    window.removeEventListener("keydown", handleKeydown);
-    displayGameover();
-    clearInterval(timer);
-  };
-
-  const nextLine = () => {
-    if (attempts === 6) return gameover();
-    attempts += 1;
-    index = 0;
-  };
-
-  const handleEnterKey = () => {
-    let 맞은_갯수 = 0;
-
-    for (let i = 0; i < 5; i++) {
-      const block = document.querySelector(
-        `.board-column[data-index='${attempts}${i}']`
-      );
-      const 입력한_글자 = block.innerText;
-      const 정답_글자 = 정답[i];
-      if (입력한_글자 === 정답_글자) {
-        맞은_갯수 += 1;
-        block.style.background = "#6AAA64";
-      } else if (정답.includes(입력한_글자)) block.style.background = "#C9B458";
-      else block.style.background = "#787C7E";
-      block.style.color = "white";
-    }
-
-    if (맞은_갯수 === 5) gameover();
-    else nextLine();
-  };
-
-  const handleBackspace = () => {
-    if (index > 0) {
-      const preBlock = document.querySelector(
-        `.board-column[data-index='${attempts}${index - 1}']`
-      );
-      preBlock.innerText = "";
-    }
-    if (index !== 0) index -= 1;
-  };
-
-  const handleKeydown = (event) => {
-    const key = event.key.toUpperCase();
-    const keyCode = event.keyCode;
-    const thisBlock = document.querySelector(
-      `.board-column[data-index='${attempts}${index}']`
-    );
-
-    if (event.key === "Backspace") handleBackspace();
-    else if (index === 5) {
-      if (event.key === "Enter") handleEnterKey();
-      else return;
-    } else if (65 <= keyCode && keyCode <= 90) {
-      thisBlock.innerText = key;
-      index += 1;
-    }
-  };
-
-  const startTimer = () => {
-    const 시작_시간 = new Date();
-
-    function setTime() {
-      const 현재_시간 = new Date();
-      const 흐른_시간 = new Date(현재_시간 - 시작_시간);
-      const 분 = 흐른_시간.getMinutes().toString().padStart(2, "0");
-      const 초 = 흐른_시간.getSeconds().toString().padStart(2, "0");
-      const timeDiv = document.querySelector("#timer");
-      timeDiv.innerText = `${분}:${초}`;
-    }
-
-    timer = setInterval(setTime, 1000);
-  };
-
-  startTimer();
-  window.addEventListener("keydown", handleKeydown);
+function 타이머_시작() {
+  시작_시각 = new Date().getTime();
+  timer = setInterval(() => {
+    const 현재_시각 = new Date().getTime();
+    const 흐른_시간 = new Date(현재_시각 - 시작_시각);
+    const 흐른_시간_분 = 흐른_시간.getMinutes();
+    const 흐른_시간_초 = 흐른_시간.getSeconds();
+    timerDiv.innerHTML = `시간: ${흐른_시간_분
+      .toString()
+      .padStart(2, "0")}:${흐른_시간_초.toString().padStart(2, "0")}`;
+  }, 1000);
 }
 
-appStart();
+function 키보드_입력_시작() {
+  const 타이머_종료 = () => clearInterval(timer);
+  const 게임_종료 = () => {
+    타이머_종료();
+    window.removeEventListener("keydown", 키보드_입력_동작);
+  };
+
+  const 정답_확인 = async () => {
+    const response = await fetch("/answer");
+    const jsonRes = await response.json();
+    const answer = jsonRes.answer;
+    let thisWord = "";
+    document
+      .querySelectorAll(`.row-${attempts} .board-column`)
+      .forEach((elem, i) => {
+        const letter = elem.innerText.toLowerCase();
+        thisWord += letter;
+        if (letter === answer[i]) {
+          elem.style.background = "#538d4e";
+        } else if (answer.includes(letter)) {
+          elem.style.background = "#b59f3b";
+        }
+      });
+
+    if (thisWord === answer) 게임_종료();
+  };
+
+  const 다음_줄_변경 = () => {
+    if (attempts === 5) return;
+    index = 0;
+    attempts++;
+    isExistLastWord = false;
+  };
+
+  const 엔터키_처리 = async () => {
+    if (index !== 4 || !isExistLastWord) return;
+    await 정답_확인();
+    다음_줄_변경();
+  };
+
+  const 알파벳_처리 = (str) => {
+    const curBox = document.querySelector(
+      `div[data-index="${attempts}${index}"`
+    );
+    curBox.innerText = str.toUpperCase();
+    if (index === 4) isExistLastWord = true;
+  };
+
+  const 현재_위치_변경 = () => {
+    if (index !== 4) index++;
+  };
+
+  const 백_키_처리 = () => {
+    if (index === 4) isExistLastWord = false;
+    index--;
+    const curBox = document.querySelector(
+      `div[data-index="${attempts}${index}"`
+    );
+    curBox.innerText = "";
+  };
+
+  const 키보드_입력_동작 = (e) => {
+    if (e.key === "Enter") return 엔터키_처리();
+    if (e.key === "Backspace") return 백_키_처리();
+    else if (e.keyCode < 65 || e.keyCode > 90) return;
+    else 알파벳_처리(e.key);
+
+    현재_위치_변경();
+  };
+
+  window.addEventListener("keydown", 키보드_입력_동작);
+}
+
+function 게임_시작() {
+  타이머_시작();
+  키보드_입력_시작();
+}
+
+게임_시작();
